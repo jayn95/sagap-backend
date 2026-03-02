@@ -46,3 +46,14 @@ class AgentRead(AgentBase):
 
     class Config:
         orm_mode = True
+
+# Optional Schema for updating agent information
+class AgentUpdate(BaseModel):
+    employee_no: str | None = None
+    full_name: str | None = None
+    designation: str | None = None
+    department: str | None = None
+    contact_number: str | None = None
+    email: str | None = None
+    current_address: str | None = None
+    status: str | None = None

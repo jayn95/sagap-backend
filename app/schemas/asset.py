@@ -52,3 +52,15 @@ class AssetRead(AssetBase):
 
     class Config:
         orm_mode = True
+
+# Optional Schema for updating asset information
+class AssetUpdate(BaseModel):
+    asset_type: str | None = None
+    asset_tag: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    serial_number: str | None = None
+    serial_number_2: str | None = None
+    memory: str | None = None
+    condition: str | None = None
+    status: str | None = None

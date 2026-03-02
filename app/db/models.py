@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
@@ -32,6 +32,9 @@ class Agent(Base):
 
     status = Column(String(50), default="Active")
 
+    # Soft delete flag for agents (not currently used in API, but available for future use)
+    is_deleted = Column(Boolean, default=False)
+
     created_at = Column(DateTime, server_default=func.now())
 
     # Relationship: One agent can have many asset assignments
@@ -59,6 +62,9 @@ class Asset(Base):
 
     status = Column(String(50), default="Available")
 
+    # Soft delete flag for assets (not currently used in API, but available for future use)
+    is_deleted = Column(Boolean, default=False)
+
     created_at = Column(DateTime, server_default=func.now())
 
     assignments = relationship("AssetAssignment", back_populates="asset")
@@ -75,6 +81,29 @@ class AssetAssignment(Base):
     returned_at = Column(DateTime, nullable=True)
     remarks = Column(Text)
 
+    is_deleted = Column(Boolean, default=False)  # NEW FIELD
+
     # 🔗 relationships
     asset = relationship("Asset", back_populates="assignments")
     agent = relationship("Agent", back_populates="assignments")
+
+# Audit Logs
+class AuditLog(Base):
+    """
+    Stores system activity logs for tracking actions performed
+    on agents, assets, and assignments.
+    """
+
+    __tablename__ = "audit_logs"
+
+    log_id = Column(Integer, primary_key=True, index=True)
+
+    action = Column(String(50))          # CREATE, UPDATE, DELETE, ASSIGN, RETURN
+    entity = Column(String(50))          # Agent, Asset, Assignment
+    entity_id = Column(Integer)          # ID of affected record
+
+    performed_by = Column(String(150))   # user/admin (future auth)
+
+    details = Column(Text)               # optional description
+
+    created_at = Column(DateTime, server_default=func.now())
