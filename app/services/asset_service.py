@@ -2,9 +2,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from app.db import models
 from app.schemas.asset import AssetCreate, AssetUpdate
+from app.services.audit_service import log_action
 
 
-def create_asset(db: Session, asset: AssetCreate) -> models.Asset:
+def create_asset(db: Session, asset: AssetCreate, performed_by: int | None = None) -> models.Asset:
     """
     Creates a new asset in the database using validated schema data.
     Returns the newly created Asset object.
@@ -14,6 +15,16 @@ def create_asset(db: Session, asset: AssetCreate) -> models.Asset:
     db.add(new_asset)
     db.commit()
     db.refresh(new_asset)
+
+    # 🔥 AUDIT LOG
+    log_action(
+        db=db,
+        action="CREATE_ASSET",
+        entity="ASSET",
+        entity_id=new_asset.asset_id,
+        performed_by=performed_by,
+        details=f"Created asset {new_asset.asset_tag}"
+    )
 
     return new_asset
 

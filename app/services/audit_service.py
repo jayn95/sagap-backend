@@ -7,7 +7,7 @@ def log_action(
     action: str,
     entity: str,
     entity_id: int | None = None,
-    performed_by: str = "system",
+    performed_by: int | None = None,
     details: str | None = None
 ):
     """
@@ -24,3 +24,6 @@ def log_action(
 
     db.add(log)
     db.commit()
+    db.refresh(log)
+
+    return log

@@ -29,7 +29,7 @@ def create_asset(asset: AssetCreate, db: Session = Depends(get_db)):
     Creates a new asset record.
     Delegates creation to asset_service.
     """
-    return asset_service.create_asset(db, asset)
+    return asset_service.create_asset(db, asset, performed_by=1) # TEMPORARY USER ID
 
 # ---------- SPECIAL LIST ----------
 # @router.get("/", response_model=List[AssetRead])

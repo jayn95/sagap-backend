@@ -2,6 +2,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from datetime import datetime
 from app.db.models import Asset, Agent, AssetAssignment
+from app.services.audit_service import log_action
+from app.services.document_service import (
+    build_desktop_json,
+    build_fatr_json,
+    create_generated_document
+)
 
 def assign_asset(db: Session, asset_id: int, agent_id: int, remarks: str | None = None):
     # Check asset exists
@@ -39,6 +45,47 @@ def assign_asset(db: Session, asset_id: int, agent_id: int, remarks: str | None 
     db.commit()
     db.refresh(assignment)
 
+    # 🔥 NEW SECTION — Generate Documents
+
+    # Get all active assignments of this agent
+    active_assignments = db.query(AssetAssignment).filter(
+        and_(
+            AssetAssignment.agent_id == agent_id,
+            AssetAssignment.returned_at == None
+        )
+    ).all()
+
+    # Build JSON payloads
+    desktop_payload = build_desktop_json(agent, active_assignments)
+    fatr_payload = build_fatr_json(agent, active_assignments)
+
+    # Save documents
+    create_generated_document(
+        db,
+        agent_id=agent.agent_id,
+        set_assignment_id=None,
+        document_type="DESKTOP_ASSIGNMENT_FORM",
+        document_payload=desktop_payload
+    )
+
+    create_generated_document(
+        db,
+        agent_id=agent.agent_id,
+        set_assignment_id=None,
+        document_type="FATR",
+        document_payload=fatr_payload
+    )
+
+    # Audit log after assign commit
+    log_action(
+        db,
+        action="ASSIGN",
+        entity="Assignment",
+        entity_id=assignment.assignment_id,
+        performed_by=current_user.id,  # or passed param
+        details=f"Asset {asset.asset_tag} assigned to Agent {agent.full_name}"
+    )
+
     return assignment
 
 
@@ -60,6 +107,15 @@ def return_asset(db: Session, assignment_id: int):
 
     db.commit()
     db.refresh(assignment)
+
+    # Audit log after return commit
+    log_action(
+        db,
+        action="RETURN",
+        entity="Assignment",
+        entity_id=assignment.assignment_id,
+        details="Asset returned"
+    )
 
     return assignment
 

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from app.db import models
 from app.schemas.agent import AgentCreate, AgentUpdate
-# from app.services.audit_service import log_action
+from app.services.audit_service import log_action
 
 def create_agent(db: Session, agent: AgentCreate) -> models.Agent:
     """
@@ -13,6 +13,15 @@ def create_agent(db: Session, agent: AgentCreate) -> models.Agent:
     db.add(new_agent)
     db.commit()
     db.refresh(new_agent)
+
+    # Audit log after create commit
+    log_action(
+        db,
+        action="CREATE",
+        entity="Agent",
+        entity_id=new_agent.agent_id,
+        details=f"Agent {new_agent.full_name} created"
+    )
 
     return new_agent
 
@@ -37,30 +46,41 @@ def get_agent_by_id(db: Session, agent_id: int):
 
 def delete_agent(db: Session, agent_id: int):
     """
-    Deletes an agent record if it exists.
+    Soft deletes an agent record if it exists.
 
-    Business Rule:
+    Business Rules:
     - Prevent deletion if the agent has assignment history.
-    - This preserves asset ownership records and data integrity.
+    - Preserve asset ownership records and data integrity.
+    - Use soft delete (is_deleted=True) instead of removing the record.
 
     Returns True if deleted successfully.
     Raises ValueError if deletion is not allowed.
     """
 
     agent = db.query(models.Agent).filter(
-        models.Agent.agent_id == agent_id
+        models.Agent.agent_id == agent_id,
+        models.Agent.is_deleted == False
     ).first()
 
     if not agent:
         return False
 
-    # 🔒 Prevent deletion if agent has assignments
+    # 🔒 Prevent deletion if agent has assignment history
     if agent.assignments:
         raise ValueError("Cannot delete agent with assignment history")
-    
-    # soft delete: mark as deleted instead of removing from database
+
+    # Soft delete
     agent.is_deleted = True
     db.commit()
+
+    # Audit log after soft delete commit
+    log_action(
+        db,
+        action="DELETE",
+        entity="Agent",
+        entity_id=agent.agent_id,
+        details=f"Agent {agent.full_name} soft deleted"
+    )
 
     return True
 
@@ -84,6 +104,15 @@ def update_agent(db: Session, agent_id: int, data: AgentUpdate):
 
     db.commit()
     db.refresh(agent)
+
+    # Audit log after update commit
+    log_action(
+        db,
+        action="UPDATE",
+        entity="Agent",
+        entity_id=agent.agent_id,
+        details="Agent information updated"
+    )
 
     return agent
 

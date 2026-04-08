@@ -2,6 +2,8 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Bool
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.db.base import Base
+from sqlalchemy.dialects.postgresql import JSONB
+import datetime # tentative
 
 class Agent(Base):
     """
@@ -90,8 +92,8 @@ class AssetAssignment(Base):
 # Audit Logs
 class AuditLog(Base):
     """
-    Stores system activity logs for tracking actions performed
-    on agents, assets, and assignments.
+    Records system activities for tracking important actions.
+    Used for debugging, monitoring, and accountability.
     """
 
     __tablename__ = "audit_logs"
@@ -102,8 +104,43 @@ class AuditLog(Base):
     entity = Column(String(50))          # Agent, Asset, Assignment
     entity_id = Column(Integer)          # ID of affected record
 
-    performed_by = Column(String(150))   # user/admin (future auth)
+    performed_by = Column(Integer, ForeignKey("users.id"))   # user/admin (future auth)
 
     details = Column(Text)               # optional description
 
     created_at = Column(DateTime, server_default=func.now())
+
+# Generated Documents
+class GeneratedDocument(Base):
+    __tablename__ = "generated_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agent_id = Column(Integer, ForeignKey("agents.id"))
+    set_assignment_id = Column(Integer, ForeignKey("set_assignments.id"))
+    document_type = Column(String(50), nullable=False)
+    document_data = Column(JSONB, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+# User
+# Needs further revision and refinement for audit logging
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    username = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+
+    full_name = Column(String, nullable=False)
+    role = Column(String, nullable=False)  # Admin, Staff, Viewer
+
+    eid = Column(String, unique=True, nullable=True)  # Optional employee ID
+
+    status = Column(String, default="active")  # active, inactive
+
+    # 🔗 Link to agent (VERY IMPORTANT)
+    agent_id = Column(Integer, ForeignKey("agents.agent_id"), nullable=True)
+
+    # 🕒 Audit fields
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
